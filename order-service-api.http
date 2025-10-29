@@ -1,0 +1,394 @@
+### Order Service API Tests
+### This file contains HTTP requests to test the Order Service API
+### Variables are used to track orderId across requests
+
+@baseUrl = http://localhost:8080
+@contentType = application/json
+
+### Health Check (if available)
+GET {{baseUrl}}/actuator/health
+Accept: application/json
+
+###
+
+### Test 1: Place Order - Happy Path
+# @name placeOrder
+POST {{baseUrl}}/api/orders/place
+Content-Type: {{contentType}}
+
+{
+  "customerId": "customer-123",
+  "items": [
+    {
+      "productId": "prod-1",
+      "quantity": 2,
+      "price": 29.99
+    },
+    {
+      "productId": "prod-2",
+      "quantity": 1,
+      "price": 49.99
+    }
+  ]
+}
+
+> {%
+    client.test("Place order successful", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+        client.assert(response.body.orderId !== undefined, "orderId is not present");
+        client.assert(response.body.status === "ORDER_PLACED", "Status is not ORDER_PLACED");
+    });
+    client.global.set("orderId", response.body.orderId);
+%}
+
+###
+
+### Test 2: Get Order Status - After Place Order
+GET {{baseUrl}}/api/orders/{{orderId}}
+Accept: {{contentType}}
+
+> {%
+    client.test("Get order status after place", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+        client.assert(response.body.orderId === client.global.get("orderId"), "orderId mismatch");
+        client.assert(response.body.orderPlaced === true, "Order not placed");
+        client.assert(response.body.paymentProcessed === false, "Payment should not be processed");
+        client.assert(response.body.shipped === false, "Order should not be shipped");
+    });
+%}
+
+###
+
+### Test 3: Process Payment
+# @name processPayment
+POST {{baseUrl}}/api/orders/payment
+Content-Type: {{contentType}}
+
+{
+  "orderId": "{{orderId}}",
+  "amount": 109.97,
+  "paymentMethod": "CREDIT_CARD"
+}
+
+> {%
+    client.test("Process payment successful", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+        client.assert(response.body.orderId === client.global.get("orderId"), "orderId mismatch");
+        client.assert(response.body.status === "PAYMENT_PROCESSED", "Status is not PAYMENT_PROCESSED");
+        client.assert(response.body.paymentId !== undefined, "paymentId is not present");
+    });
+    client.global.set("paymentId", response.body.paymentId);
+%}
+
+###
+
+### Test 4: Get Order Status - After Payment
+GET {{baseUrl}}/api/orders/{{orderId}}
+Accept: {{contentType}}
+
+> {%
+    client.test("Get order status after payment", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+        client.assert(response.body.orderPlaced === true, "Order should be placed");
+        client.assert(response.body.paymentProcessed === true, "Payment should be processed");
+        client.assert(response.body.shipped === false, "Order should not be shipped yet");
+    });
+%}
+
+###
+
+### Test 5: Ship Order
+# @name shipOrder
+POST {{baseUrl}}/api/orders/ship
+Content-Type: {{contentType}}
+
+{
+  "orderId": "{{orderId}}",
+  "shippingAddress": {
+    "street": "123 Main St",
+    "city": "Springfield",
+    "state": "IL",
+    "postalCode": "12345",
+    "country": "USA"
+  }
+}
+
+> {%
+    client.test("Ship order successful", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+        client.assert(response.body.orderId === client.global.get("orderId"), "orderId mismatch");
+        client.assert(response.body.status === "SHIPPED", "Status is not SHIPPED");
+        client.assert(response.body.shipmentId !== undefined, "shipmentId is not present");
+    });
+    client.global.set("shipmentId", response.body.shipmentId);
+%}
+
+###
+
+### Test 6: Get Final Order Status
+GET {{baseUrl}}/api/orders/{{orderId}}
+Accept: {{contentType}}
+
+> {%
+    client.test("Get final order status", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+        client.assert(response.body.orderPlaced === true, "Order should be placed");
+        client.assert(response.body.paymentProcessed === true, "Payment should be processed");
+        client.assert(response.body.shipped === true, "Order should be shipped");
+        client.assert(response.body.customerId === "customer-123", "customerId mismatch");
+    });
+%}
+
+###
+
+### ========================================
+### ROLLBACK TESTS
+### ========================================
+
+### Test 7: Place Another Order for Rollback Testing
+# @name placeOrderForRollback
+POST {{baseUrl}}/api/orders/place
+Content-Type: {{contentType}}
+
+{
+  "customerId": "customer-456",
+  "items": [
+    {
+      "productId": "prod-3",
+      "quantity": 1,
+      "price": 99.99
+    }
+  ]
+}
+
+> {%
+    client.test("Place order for rollback successful", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+        client.assert(response.body.orderId !== undefined, "orderId is not present");
+    });
+    client.global.set("rollbackOrderId", response.body.orderId);
+%}
+
+###
+
+### Test 8: Process Payment for Rollback Order
+POST {{baseUrl}}/api/orders/payment
+Content-Type: {{contentType}}
+
+{
+  "orderId": "{{rollbackOrderId}}",
+  "amount": 99.99,
+  "paymentMethod": "DEBIT_CARD"
+}
+
+> {%
+    client.test("Process payment for rollback order successful", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+    });
+%}
+
+###
+
+### Test 9: Ship Rollback Order
+POST {{baseUrl}}/api/orders/ship
+Content-Type: {{contentType}}
+
+{
+  "orderId": "{{rollbackOrderId}}",
+  "shippingAddress": {
+    "street": "456 Oak Ave",
+    "city": "Portland",
+    "state": "OR",
+    "postalCode": "97201",
+    "country": "USA"
+  }
+}
+
+> {%
+    client.test("Ship rollback order successful", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+    });
+%}
+
+###
+
+### Test 10: Rollback Ship Order
+POST {{baseUrl}}/api/orders/ship/rollback
+Content-Type: {{contentType}}
+
+{
+  "orderId": "{{rollbackOrderId}}",
+  "reason": "Warehouse issue - item out of stock"
+}
+
+> {%
+    client.test("Rollback ship order successful", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+        client.assert(response.body.orderId === client.global.get("rollbackOrderId"), "orderId mismatch");
+    });
+%}
+
+###
+
+### Test 11: Verify Ship Rollback
+GET {{baseUrl}}/api/orders/{{rollbackOrderId}}
+Accept: {{contentType}}
+
+> {%
+    client.test("Verify ship rollback", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+        client.assert(response.body.shipped === false, "Order should not be shipped after rollback");
+        client.assert(response.body.paymentProcessed === true, "Payment should still be processed");
+        client.assert(response.body.shipmentId === null || response.body.shipmentId === undefined, "shipmentId should be cleared");
+    });
+%}
+
+###
+
+### Test 12: Rollback Payment
+POST {{baseUrl}}/api/orders/payment/rollback
+Content-Type: {{contentType}}
+
+{
+  "orderId": "{{rollbackOrderId}}",
+  "reason": "Payment gateway error"
+}
+
+> {%
+    client.test("Rollback payment successful", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+        client.assert(response.body.orderId === client.global.get("rollbackOrderId"), "orderId mismatch");
+    });
+%}
+
+###
+
+### Test 13: Verify Payment Rollback
+GET {{baseUrl}}/api/orders/{{rollbackOrderId}}
+Accept: {{contentType}}
+
+> {%
+    client.test("Verify payment rollback", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+        client.assert(response.body.paymentProcessed === false, "Payment should be rolled back");
+        client.assert(response.body.orderPlaced === true, "Order should still be placed");
+        client.assert(response.body.paymentId === null || response.body.paymentId === undefined, "paymentId should be cleared");
+    });
+%}
+
+###
+
+### Test 14: Rollback Place Order
+POST {{baseUrl}}/api/orders/place/rollback
+Content-Type: {{contentType}}
+
+{
+  "orderId": "{{rollbackOrderId}}",
+  "reason": "Customer cancellation"
+}
+
+> {%
+    client.test("Rollback place order successful", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+        client.assert(response.body.orderId === client.global.get("rollbackOrderId"), "orderId mismatch");
+    });
+%}
+
+###
+
+### Test 15: Verify Place Order Rollback
+GET {{baseUrl}}/api/orders/{{rollbackOrderId}}
+Accept: {{contentType}}
+
+> {%
+    client.test("Verify place order rollback", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+        client.assert(response.body.orderPlaced === false, "Order should be rolled back");
+        client.assert(response.body.paymentProcessed === false, "Payment should be rolled back");
+        client.assert(response.body.shipped === false, "Shipment should be rolled back");
+    });
+%}
+
+###
+
+### ========================================
+### ERROR SCENARIO TESTS
+### ========================================
+
+### Test 16: Place Order for Error Testing
+# @name placeOrderForErrors
+POST {{baseUrl}}/api/orders/place
+Content-Type: {{contentType}}
+
+{
+  "customerId": "customer-789",
+  "items": [
+    {
+      "productId": "prod-4",
+      "quantity": 5,
+      "price": 19.99
+    }
+  ]
+}
+
+> {%
+    client.test("Place order for error testing successful", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+    });
+    client.global.set("errorTestOrderId", response.body.orderId);
+%}
+
+###
+
+### Test 17: Try to Ship Without Payment (Should Fail)
+POST {{baseUrl}}/api/orders/ship
+Content-Type: {{contentType}}
+
+{
+  "orderId": "{{errorTestOrderId}}",
+  "shippingAddress": {
+    "street": "789 Elm St",
+    "city": "Seattle",
+    "state": "WA",
+    "postalCode": "98101",
+    "country": "USA"
+  }
+}
+
+> {%
+    client.test("Ship without payment should fail", function() {
+        client.assert(response.status === 400 || response.status === 422, "Expected 400 or 422 status code");
+    });
+%}
+
+###
+
+### Test 18: Try to Get Non-Existent Order
+GET {{baseUrl}}/api/orders/non-existent-order-id
+Accept: {{contentType}}
+
+> {%
+    client.test("Get non-existent order should fail", function() {
+        client.assert(response.status === 404, "Expected 404 status code");
+    });
+%}
+
+###
+
+### Test 19: Try to Process Payment for Non-Existent Order
+POST {{baseUrl}}/api/orders/payment
+Content-Type: {{contentType}}
+
+{
+  "orderId": "non-existent-order-id",
+  "amount": 100.00,
+  "paymentMethod": "CREDIT_CARD"
+}
+
+> {%
+    client.test("Payment for non-existent order should fail", function() {
+        client.assert(response.status === 404, "Expected 404 status code");
+    });
+%}
+
+###
