@@ -1,0 +1,413 @@
+openapi: 3.0.3
+info:
+  title: Order Service API
+  description: API for order processing with rollback functionality for distributed transactions
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+
+tags:
+  - name: Order
+    description: Order processing operations
+
+paths:
+  /api/orders/place:
+    post:
+      tags:
+        - Order
+      summary: Place a new order
+      operationId: placeOrder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlaceOrderRequest'
+      responses:
+        '200':
+          description: Order placed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/orders/place/rollback:
+    post:
+      tags:
+        - Order
+      summary: Rollback order placement
+      operationId: rollbackPlaceOrder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RollbackRequest'
+      responses:
+        '200':
+          description: Order placement rolled back successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RollbackResponse'
+        '404':
+          description: Order not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/orders/payment:
+    post:
+      tags:
+        - Order
+      summary: Process payment for an order
+      operationId: processPayment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentRequest'
+      responses:
+        '200':
+          description: Payment processed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Order not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/orders/payment/rollback:
+    post:
+      tags:
+        - Order
+      summary: Rollback payment processing
+      operationId: rollbackPayment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RollbackRequest'
+      responses:
+        '200':
+          description: Payment rolled back successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RollbackResponse'
+        '404':
+          description: Order not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/orders/ship:
+    post:
+      tags:
+        - Order
+      summary: Ship an order
+      operationId: shipOrder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShipOrderRequest'
+      responses:
+        '200':
+          description: Order shipped successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShipOrderResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Order not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/orders/ship/rollback:
+    post:
+      tags:
+        - Order
+      summary: Rollback order shipment
+      operationId: rollbackShipOrder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RollbackRequest'
+      responses:
+        '200':
+          description: Shipment rolled back successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RollbackResponse'
+        '404':
+          description: Order not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/orders/{orderId}:
+    get:
+      tags:
+        - Order
+      summary: Get order status
+      operationId: getOrderStatus
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Order status retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderStatusResponse'
+        '404':
+          description: Order not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    PlaceOrderRequest:
+      type: object
+      required:
+        - customerId
+        - items
+      properties:
+        customerId:
+          type: string
+          description: Customer identifier
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderItem'
+          minItems: 1
+
+    OrderItem:
+      type: object
+      required:
+        - productId
+        - quantity
+        - price
+      properties:
+        productId:
+          type: string
+          description: Product identifier
+        quantity:
+          type: integer
+          minimum: 1
+        price:
+          type: number
+          format: double
+          minimum: 0
+
+    OrderResponse:
+      type: object
+      required:
+        - orderId
+        - status
+        - timestamp
+      properties:
+        orderId:
+          type: string
+          description: Unique order identifier
+        status:
+          type: string
+          description: Order status
+        timestamp:
+          type: string
+          format: date-time
+
+    PaymentRequest:
+      type: object
+      required:
+        - orderId
+        - amount
+        - paymentMethod
+      properties:
+        orderId:
+          type: string
+          description: Order identifier
+        amount:
+          type: number
+          format: double
+          minimum: 0
+        paymentMethod:
+          type: string
+          description: Payment method (e.g., CREDIT_CARD, DEBIT_CARD)
+
+    PaymentResponse:
+      type: object
+      required:
+        - orderId
+        - paymentId
+        - status
+        - timestamp
+      properties:
+        orderId:
+          type: string
+        paymentId:
+          type: string
+          description: Unique payment identifier
+        status:
+          type: string
+          description: Payment status
+        timestamp:
+          type: string
+          format: date-time
+
+    ShipOrderRequest:
+      type: object
+      required:
+        - orderId
+        - shippingAddress
+      properties:
+        orderId:
+          type: string
+          description: Order identifier
+        shippingAddress:
+          $ref: '#/components/schemas/Address'
+        trackingNumber:
+          type: string
+          description: Optional tracking number
+
+    Address:
+      type: object
+      required:
+        - street
+        - city
+        - postalCode
+        - country
+      properties:
+        street:
+          type: string
+        city:
+          type: string
+        postalCode:
+          type: string
+        country:
+          type: string
+
+    ShipOrderResponse:
+      type: object
+      required:
+        - orderId
+        - shipmentId
+        - status
+        - timestamp
+      properties:
+        orderId:
+          type: string
+        shipmentId:
+          type: string
+          description: Unique shipment identifier
+        status:
+          type: string
+          description: Shipment status
+        timestamp:
+          type: string
+          format: date-time
+
+    RollbackRequest:
+      type: object
+      required:
+        - orderId
+      properties:
+        orderId:
+          type: string
+          description: Order identifier to rollback
+        reason:
+          type: string
+          description: Optional reason for rollback
+
+    RollbackResponse:
+      type: object
+      required:
+        - orderId
+        - status
+        - timestamp
+      properties:
+        orderId:
+          type: string
+        status:
+          type: string
+          description: Rollback status
+        timestamp:
+          type: string
+          format: date-time
+
+    OrderStatusResponse:
+      type: object
+      required:
+        - orderId
+        - orderPlaced
+        - paymentProcessed
+        - shipped
+      properties:
+        orderId:
+          type: string
+        orderPlaced:
+          type: boolean
+        paymentProcessed:
+          type: boolean
+        shipped:
+          type: boolean
+        customerId:
+          type: string
+        totalAmount:
+          type: number
+          format: double
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
