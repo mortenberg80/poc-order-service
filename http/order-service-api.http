@@ -117,7 +117,7 @@ Content-Type: {{contentType}}
     client.test("Ship order successful", function() {
         client.assert(response.status === 200, "Response status is not 200");
         client.assert(response.body.orderId === client.global.get("orderId"), "orderId mismatch");
-        client.assert(response.body.status === "SHIPPED", "Status is not SHIPPED");
+        client.assert(response.body.status === "ORDER_SHIPPED", "Status is not SHIPPED");
         client.assert(response.body.shipmentId !== undefined, "shipmentId is not present");
     });
     client.global.set("shipmentId", response.body.shipmentId);
