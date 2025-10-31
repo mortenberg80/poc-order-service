@@ -1,6 +1,6 @@
 package com.example.orderservice.controller
 
-import com.example.orderservice.api.OrderApiDelegate
+import com.example.orderservice.api.OrderApi
 import com.example.orderservice.domain.AddressState
 import com.example.orderservice.domain.OrderItemState
 import com.example.orderservice.model.*
@@ -9,25 +9,19 @@ import com.example.orderservice.service.OrderService
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
-import org.springframework.stereotype.Component
-import org.springframework.web.context.request.NativeWebRequest
+import org.springframework.web.bind.annotation.RestController
 import java.time.OffsetDateTime
-import java.util.*
 
 /**
  * Implementation of the OpenAPI-generated OrderApiDelegate interface.
  * This connects the API layer to the service layer.
  */
-@Component
-class OrderApiDelegateImpl(
+@RestController
+class OrderController(
     private val orderService: OrderService
-) : OrderApiDelegate {
+) : OrderApi {
 
-    private val logger = LoggerFactory.getLogger(OrderApiDelegateImpl::class.java)
-
-    override fun getRequest(): Optional<NativeWebRequest> {
-        return Optional.empty()
-    }
+    private val logger = LoggerFactory.getLogger(OrderController::class.java)
 
     override fun placeOrder(placeOrderRequest: PlaceOrderRequest): ResponseEntity<OrderResponse> {
         return try {
