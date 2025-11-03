@@ -21,6 +21,7 @@
     <modules>
         <module>order-service</module>
         <module>order-service-client</module>
+        <module>order-service-client-kotlinx</module>
     </modules>
 
 
