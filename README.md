@@ -7,7 +7,8 @@ A Spring Boot Kotlin REST API that simulates order processing for distributed tr
 This is a multi-module Maven project:
 
 - **order-service** - The main Spring Boot service providing the REST API
-- **order-service-client** - A generated Java/Kotlin client library for consuming the Order Service API
+- **order-service-client** - A generated Java/Kotlin client library using Jackson and OkHttp4
+- **order-service-client-kotlinx** - A generated Kotlin client library using kotlinx.serialization and Ktor
 
 ## Features
 
@@ -114,32 +115,10 @@ curl http://localhost:8080/api/orders/YOUR_ORDER_ID
 
 ## Using the Client Library
 
-The `order-service-client` module provides a type-safe Java/Kotlin client library for consuming this API. See [order-service-client/README.md](order-service-client/README.md) for detailed usage instructions.
+The project provides **two client library options**:
 
-### Quick Client Example (Kotlin)
-
-```kotlin
-import com.example.orderservice.client.api.OrderApi
-import com.example.orderservice.client.infrastructure.ApiClient
-import com.example.orderservice.client.model.*
-
-val orderApi = OrderApi("http://localhost:8080")
-
-// Place order
-val orderResponse = orderApi.placeOrder(
-    PlaceOrderRequest(
-        customerId = "customer-123",
-        items = listOf(OrderItem("prod-1", 2, 29.99.toBigDecimal()))
-    )
-)
-
-// Process payment
-orderApi.processPayment(
-    PaymentRequest(orderResponse.orderId, 59.98.toBigDecimal(), "CREDIT_CARD")
-)
-```
-
-### Adding Client to Your Project
+### 1. Jackson Client (order-service-client)
+Best for Java projects or mixed Java/Kotlin codebases. Uses Jackson for JSON serialization and OkHttp4 for HTTP.
 
 ```xml
 <dependency>
@@ -148,6 +127,67 @@ orderApi.processPayment(
     <version>0.0.1-SNAPSHOT</version>
 </dependency>
 ```
+
+See [order-service-client/README.md](order-service-client/README.md) for details.
+
+### 2. Kotlinx Serialization Client (order-service-client-kotlinx)
+Best for pure Kotlin projects. Uses kotlinx.serialization and Ktor client for a fully Kotlin-native experience.
+
+```xml
+<dependency>
+    <groupId>com.example</groupId>
+    <artifactId>order-service-client-kotlinx</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+</dependency>
+```
+
+See [order-service-client-kotlinx/README.md](order-service-client-kotlinx/README.md) for details.
+
+### Quick Client Examples
+
+**Jackson Client (Kotlin/Java):**
+```kotlin
+import com.example.orderservice.client.api.OrderApi
+
+val orderApi = OrderApi("http://localhost:8080")
+val response = orderApi.placeOrder(
+    PlaceOrderRequest(
+        customerId = "customer-123",
+        items = listOf(OrderItem("prod-1", 2, 29.99.toBigDecimal()))
+    )
+)
+```
+
+**Kotlinx Client (Kotlin-only):**
+```kotlin
+import com.example.orderservice.client.kotlinx.api.OrderApi
+import io.ktor.client.*
+import io.ktor.client.engine.cio.*
+import io.ktor.client.plugins.contentnegotiation.*
+import io.ktor.serialization.kotlinx.json.*
+
+val httpClient = HttpClient(CIO) {
+    install(ContentNegotiation) { json() }
+}
+val orderApi = OrderApi("http://localhost:8080", httpClient)
+val response = orderApi.placeOrder(
+    PlaceOrderRequest(
+        customerId = "customer-123",
+        items = listOf(OrderItem("prod-1", 2, 29.99))
+    )
+)
+```
+
+### Client Comparison
+
+| Feature | Jackson Client | Kotlinx Client |
+|---------|---------------|----------------|
+| Language | Java & Kotlin | Kotlin only |
+| Serialization | Jackson | kotlinx.serialization |
+| HTTP Client | OkHttp4 | Ktor |
+| Best for | Mixed Java/Kotlin | Pure Kotlin |
+| Maturity | Battle-tested | Modern |
+| Size | Heavier | Lighter |
 
 ## Architecture
 
@@ -201,9 +241,14 @@ order-service/                          # Root multi-module project
 │   │       ├── openapi/order-service-api.yaml    # API specification (source of truth)
 │   │       └── application.yaml
 │   └── pom.xml
-└── order-service-client/              # Generated client library
+├── order-service-client/              # Jackson-based client library
+│   ├── src/main/kotlin/               # Optional custom utilities
+│   ├── target/generated-sources/      # Generated client code (Jackson + OkHttp4)
+│   ├── pom.xml
+│   └── README.md                      # Client usage documentation
+└── order-service-client-kotlinx/     # Kotlinx.serialization client library
     ├── src/main/kotlin/               # Optional custom utilities
-    ├── target/generated-sources/      # Generated client code
+    ├── target/generated-sources/      # Generated client code (kotlinx + Ktor)
     ├── pom.xml
     └── README.md                      # Client usage documentation
 ```
