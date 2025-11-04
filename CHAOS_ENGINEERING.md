@@ -19,6 +19,16 @@ This service includes comprehensive chaos engineering capabilities for testing d
 mvn spring-boot:run -Dspring-boot.run.profiles=chaos
 ```
 
+On startup, you'll see chaos configuration logged:
+```
+╔════════════════════════════════════════════════════════════════╗
+║          ⚡ CHAOS ENGINEERING: ENABLED ⚡                       ║
+╠════════════════════════════════════════════════════════════════╣
+║  WARNING: Service running with CHAOS INJECTION                 ║
+║  Endpoints may experience failures and/or latency              ║
+╚════════════════════════════════════════════════════════════════╝
+```
+
 **Option 2: Via Environment Variable**
 ```bash
 export CHAOS_ENABLED=true
@@ -29,6 +39,8 @@ mvn spring-boot:run
 ```bash
 java -jar order-service.jar --chaos.enabled=true
 ```
+
+**Note:** The service logs detailed chaos configuration on startup, showing which endpoints are affected and how. See [CHAOS_STARTUP_LOGGING.md](CHAOS_STARTUP_LOGGING.md) for examples.
 
 ### Enable Chaos at Runtime
 
