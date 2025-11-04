@@ -18,6 +18,7 @@ This is a multi-module Maven project:
 - **OpenAPI-First:** API defined in OpenAPI specification, code generated automatically
 - **Type-Safe:** Built with Kotlin for null safety and immutability
 - **Client Library:** Auto-generated type-safe client for easy integration
+- **Chaos Engineering:** Built-in failure and latency injection for testing distributed systems ⚡ NEW
 
 ## Quick Start
 
@@ -112,6 +113,57 @@ curl -X POST http://localhost:8080/api/orders/payment/rollback \
 ```bash
 curl http://localhost:8080/api/orders/YOUR_ORDER_ID
 ```
+
+## Chaos Engineering ⚡
+
+This service includes comprehensive chaos engineering capabilities for testing distributed systems, Saga patterns, and resilience mechanisms.
+
+### Quick Start with Chaos
+
+```bash
+# Enable chaos with a profile
+mvn spring-boot:run -Dspring-boot.run.profiles=chaos
+
+# Or activate a scenario at runtime
+curl -X POST http://localhost:8080/actuator/chaos/scenario/flaky-payment
+```
+
+### Available Scenarios
+
+- **saga-compensation-test** - Payment always fails (test rollback logic)
+- **flaky-payment** - Unreliable payment with 40% failure rate
+- **slow-services** - All services respond with 2-3 second delays
+- **retry-test** - Fail 2 times, then succeed (test retry logic)
+- **total-chaos** - Random failures and latency across all endpoints
+
+### Chaos Management API
+
+```bash
+# List scenarios
+GET http://localhost:8080/actuator/chaos/scenarios
+
+# Activate scenario
+POST http://localhost:8080/actuator/chaos/scenario/saga-compensation-test
+
+# View statistics
+GET http://localhost:8080/actuator/chaos/statistics
+
+# Reset chaos state
+POST http://localhost:8080/actuator/chaos/reset
+```
+
+### Per-Request Chaos
+
+Use the `X-Chaos-Scenario` header to apply chaos to a single request:
+
+```bash
+curl -X POST http://localhost:8080/api/orders/place \
+  -H "Content-Type: application/json" \
+  -H "X-Chaos-Scenario: retry-test" \
+  -d '{"customerId": "test", "items": [...]}'
+```
+
+**📖 Full Documentation:** See [CHAOS_ENGINEERING.md](CHAOS_ENGINEERING.md) for complete guide
 
 ## Using the Client Library
 
