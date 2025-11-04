@@ -9,3 +9,146 @@ logging:
   level:
     com.example.orderservice: DEBUG
     org.springframework.web: INFO
+
+# Chaos Engineering Configuration
+chaos:
+  enabled: false  # Set to true to enable chaos
+  
+  # Per-endpoint chaos configuration
+  endpoints:
+    # Place order endpoint
+    place-order:
+      enabled: true
+      latency:
+        enabled: false
+        min-delay-ms: 100
+        max-delay-ms: 500
+        probability: 0.3  # 30% of requests
+      failure:
+        enabled: false
+        failure-rate: 0.1  # 10% fail
+        error-type: SERVER_ERROR
+        error-message: "Simulated order placement failure"
+    
+    # Process payment endpoint
+    process-payment:
+      enabled: true
+      latency:
+        enabled: false
+        fixed-delay-ms: 2000
+        probability: 0.5
+      failure:
+        enabled: false
+        failure-rate: 0.2
+        error-type: SERVICE_UNAVAILABLE
+        http-status: 503
+    
+    # Ship order endpoint
+    ship-order:
+      enabled: true
+      latency:
+        enabled: false
+        min-delay-ms: 50
+        max-delay-ms: 200
+      failure:
+        enabled: false
+        failure-rate: 0.15
+        error-type: TIMEOUT
+  
+  # Named scenarios for common test cases
+  scenarios:
+    # Scenario 1: Test Saga compensation - payment always fails
+    saga-compensation-test:
+      description: "Payment always fails to test compensation/rollback logic"
+      endpoints:
+        process-payment:
+          enabled: true
+          failure:
+            enabled: true
+            failure-rate: 1.0
+            error-type: SERVER_ERROR
+            error-message: "Payment gateway unavailable"
+    
+    # Scenario 2: Flaky payment service
+    flaky-payment:
+      description: "Payment service is unreliable with high failure rate"
+      endpoints:
+        process-payment:
+          enabled: true
+          latency:
+            enabled: true
+            min-delay-ms: 1000
+            max-delay-ms: 3000
+            probability: 0.8
+          failure:
+            enabled: true
+            failure-rate: 0.4
+            error-type: RANDOM
+    
+    # Scenario 3: Slow services
+    slow-services:
+      description: "All services respond slowly to test timeout handling"
+      endpoints:
+        place-order:
+          enabled: true
+          latency:
+            enabled: true
+            fixed-delay-ms: 2000
+        process-payment:
+          enabled: true
+          latency:
+            enabled: true
+            fixed-delay-ms: 3000
+        ship-order:
+          enabled: true
+          latency:
+            enabled: true
+            fixed-delay-ms: 2500
+    
+    # Scenario 4: Consecutive failures (retry testing)
+    retry-test:
+      description: "Fail twice then succeed - tests retry logic"
+      endpoints:
+        place-order:
+          enabled: true
+          failure:
+            enabled: true
+            consecutive-failures: 2
+            consecutive-successes: 1
+            error-type: SERVICE_UNAVAILABLE
+    
+    # Scenario 5: Total chaos
+    total-chaos:
+      description: "Everything is failing and slow"
+      endpoints:
+        place-order:
+          enabled: true
+          latency:
+            enabled: true
+            min-delay-ms: 500
+            max-delay-ms: 2000
+            probability: 0.7
+          failure:
+            enabled: true
+            failure-rate: 0.3
+        process-payment:
+          enabled: true
+          latency:
+            enabled: true
+            min-delay-ms: 1000
+            max-delay-ms: 3000
+            probability: 0.8
+          failure:
+            enabled: true
+            failure-rate: 0.4
+        ship-order:
+          enabled: true
+          latency:
+            enabled: true
+            min-delay-ms: 500
+            max-delay-ms: 1500
+            probability: 0.6
+          failure:
+            enabled: true
+            failure-rate: 0.25
+
