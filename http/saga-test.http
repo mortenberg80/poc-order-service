@@ -1,0 +1,176 @@
+### Complete Saga Test Scenario
+### This file demonstrates a complete saga flow with chaos
+
+### Step 1: Reset chaos to clean state
+POST http://localhost:8080/actuator/chaos/reset
+Content-Type: application/json
+
+###
+### Step 2: Activate saga compensation test scenario
+### This makes payment always fail
+POST http://localhost:8080/actuator/chaos/scenario/saga-compensation-test
+Content-Type: application/json
+
+###
+### Step 3: Place order (should succeed)
+POST http://localhost:8080/api/orders/place
+Content-Type: application/json
+
+{
+  "customerId": "saga-test-customer-001",
+  "items": [
+    {
+      "productId": "laptop",
+      "quantity": 1,
+      "price": 999.99
+    },
+    {
+      "productId": "mouse",
+      "quantity": 2,
+      "price": 29.99
+    }
+  ]
+}
+
+> {%
+    client.test("Order placed successfully", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+        client.assert(response.body.orderId, "Order ID is missing");
+        client.global.set("orderId", response.body.orderId);
+    });
+%}
+
+###
+### Step 4: Check order status (should show orderPlaced=true)
+GET http://localhost:8080/api/orders/{{orderId}}
+Accept: application/json
+
+###
+### Step 5: Try to process payment (WILL FAIL due to chaos)
+POST http://localhost:8080/api/orders/payment
+Content-Type: application/json
+
+{
+  "orderId": "{{orderId}}",
+  "amount": 1059.97,
+  "paymentMethod": "CREDIT_CARD"
+}
+
+> {%
+    client.test("Payment failed as expected", function() {
+        client.assert(response.status === 500, "Expected 500 error");
+    });
+%}
+
+###
+### Step 6: Rollback order placement (compensation)
+POST http://localhost:8080/api/orders/place/rollback
+Content-Type: application/json
+
+{
+  "orderId": "{{orderId}}",
+  "reason": "Payment failed - saga compensation"
+}
+
+> {%
+    client.test("Rollback successful", function() {
+        client.assert(response.status === 200, "Rollback failed");
+    });
+%}
+
+###
+### Step 7: Verify order status (should show orderPlaced=false)
+GET http://localhost:8080/api/orders/{{orderId}}
+Accept: application/json
+
+> {%
+    client.test("Order properly rolled back", function() {
+        client.assert(response.status === 200, "Failed to get order");
+        client.assert(response.body.orderPlaced === false, "Order should be rolled back");
+    });
+%}
+
+###
+### Step 8: Check chaos statistics
+GET http://localhost:8080/actuator/chaos/statistics
+Accept: application/json
+
+###
+### Step 9: Clean up - deactivate scenario
+POST http://localhost:8080/actuator/chaos/scenario/deactivate
+Content-Type: application/json
+
+###
+### Alternative: Test successful flow (deactivate chaos first)
+POST http://localhost:8080/actuator/chaos/reset
+
+###
+### Now place order without chaos
+POST http://localhost:8080/api/orders/place
+Content-Type: application/json
+
+{
+  "customerId": "success-test-customer",
+  "items": [
+    {
+      "productId": "keyboard",
+      "quantity": 1,
+      "price": 79.99
+    }
+  ]
+}
+
+> {%
+    client.global.set("successOrderId", response.body.orderId);
+%}
+
+###
+### Process payment (should succeed now)
+POST http://localhost:8080/api/orders/payment
+Content-Type: application/json
+
+{
+  "orderId": "{{successOrderId}}",
+  "amount": 79.99,
+  "paymentMethod": "CREDIT_CARD"
+}
+
+> {%
+    client.test("Payment succeeded", function() {
+        client.assert(response.status === 200, "Payment should succeed");
+    });
+%}
+
+###
+### Ship order (should succeed)
+POST http://localhost:8080/api/orders/ship
+Content-Type: application/json
+
+{
+  "orderId": "{{successOrderId}}",
+  "shippingAddress": {
+    "street": "456 Tech Ave",
+    "city": "Innovation City",
+    "postalCode": "94000",
+    "country": "USA"
+  }
+}
+
+> {%
+    client.test("Shipment succeeded", function() {
+        client.assert(response.status === 200, "Shipment should succeed");
+    });
+%}
+
+###
+### Final status check (all should be true)
+GET http://localhost:8080/api/orders/{{successOrderId}}
+Accept: application/json
+
+> {%
+    client.test("Complete order flow successful", function() {
+        client.assert(response.body.orderPlaced === true, "Order should be placed");
+        client.assert(response.body.paymentProcessed === true, "Payment should be processed");
+        client.assert(response.body.shipped === true, "Order should be shipped");
+    });
+%}

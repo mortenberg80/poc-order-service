@@ -1,0 +1,141 @@
+### Chaos Engineering API Tests
+### Use these to test and manage chaos engineering features
+
+### 1. Check chaos health
+GET http://localhost:8080/actuator/chaos/health
+Accept: application/json
+
+### 2. Get current chaos configuration
+GET http://localhost:8080/actuator/chaos/config
+Accept: application/json
+
+### 3. List available scenarios
+GET http://localhost:8080/actuator/chaos/scenarios
+Accept: application/json
+
+### 4. Get chaos statistics
+GET http://localhost:8080/actuator/chaos/statistics
+Accept: application/json
+
+### 5. Activate saga compensation scenario
+POST http://localhost:8080/actuator/chaos/scenario/saga-compensation-test
+Content-Type: application/json
+
+### 6. Activate flaky payment scenario
+POST http://localhost:8080/actuator/chaos/scenario/flaky-payment
+Content-Type: application/json
+
+### 7. Activate slow services scenario
+POST http://localhost:8080/actuator/chaos/scenario/slow-services
+Content-Type: application/json
+
+### 8. Activate retry test scenario
+POST http://localhost:8080/actuator/chaos/scenario/retry-test
+Content-Type: application/json
+
+### 9. Activate total chaos scenario
+POST http://localhost:8080/actuator/chaos/scenario/total-chaos
+Content-Type: application/json
+
+### 10. Deactivate current scenario
+POST http://localhost:8080/actuator/chaos/scenario/deactivate
+Content-Type: application/json
+
+### 11. Reset all chaos states
+POST http://localhost:8080/actuator/chaos/reset
+Content-Type: application/json
+
+###
+### Test Scenarios with Chaos
+###
+
+### Scenario 1: Test place order with chaos (using header)
+POST http://localhost:8080/api/orders/place
+Content-Type: application/json
+X-Chaos-Scenario: retry-test
+
+{
+  "customerId": "chaos-customer-1",
+  "items": [
+    {
+      "productId": "prod-chaos-1",
+      "quantity": 1,
+      "price": 99.99
+    }
+  ]
+}
+
+### Scenario 2: Test payment with saga compensation
+# First activate the scenario
+POST http://localhost:8080/actuator/chaos/scenario/saga-compensation-test
+
+###
+# Then try to place order and process payment
+POST http://localhost:8080/api/orders/place
+Content-Type: application/json
+
+{
+  "customerId": "saga-test-customer",
+  "items": [
+    {
+      "productId": "prod-1",
+      "quantity": 2,
+      "price": 50.00
+    }
+  ]
+}
+
+### Save the orderId from response, then try payment (will fail)
+POST http://localhost:8080/api/orders/payment
+Content-Type: application/json
+
+{
+  "orderId": "REPLACE_WITH_ORDER_ID",
+  "amount": 100.00,
+  "paymentMethod": "CREDIT_CARD"
+}
+
+### Scenario 3: Test with slow services
+POST http://localhost:8080/actuator/chaos/scenario/slow-services
+
+###
+# This request will take 2+ seconds
+POST http://localhost:8080/api/orders/place
+Content-Type: application/json
+
+{
+  "customerId": "slow-test-customer",
+  "items": [
+    {
+      "productId": "prod-2",
+      "quantity": 1,
+      "price": 25.00
+    }
+  ]
+}
+
+### Scenario 4: Test flaky behavior
+POST http://localhost:8080/actuator/chaos/scenario/flaky-payment
+
+###
+# Try multiple times to see random failures
+POST http://localhost:8080/api/orders/place
+Content-Type: application/json
+
+{
+  "customerId": "flaky-customer",
+  "items": [
+    {
+      "productId": "prod-3",
+      "quantity": 1,
+      "price": 75.00
+    }
+  ]
+}
+
+### Check statistics after tests
+GET http://localhost:8080/actuator/chaos/statistics
+Accept: application/json
+
+### Reset everything
+POST http://localhost:8080/actuator/chaos/reset
