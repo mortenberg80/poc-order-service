@@ -10,21 +10,21 @@ chaos:
       enabled: true
       latency:
         enabled: true
-        min-delay-ms: 100
-        max-delay-ms: 500
-        probability: 0.3
+        min-delay-ms: 1000
+        max-delay-ms: 5000
+        probability: 0.5
       failure:
         enabled: true
-        failure-rate: 0.1
+        failure-rate: 0.9
         error-type: SERVER_ERROR
     
     process-payment:
       enabled: true
       latency:
         enabled: true
-        min-delay-ms: 200
-        max-delay-ms: 1000
-        probability: 0.4
+        min-delay-ms: 1000
+        max-delay-ms: 5000
+        probability: 0.5
       failure:
         enabled: true
         failure-rate: 0.15
@@ -39,5 +39,5 @@ chaos:
         probability: 0.2
       failure:
         enabled: true
-        failure-rate: 0.1
+        failure-rate: 0.9
         error-type: TIMEOUT
